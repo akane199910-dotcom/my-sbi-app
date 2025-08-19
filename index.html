@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SBI風 ポートフォリオ & 注文照会（編集/閲覧切替）</title>
-<meta name="theme-color" content="#0b1220">
+<title>SBI風 口座管理 & 注文照会（編集/閲覧切替）</title>
+<meta name="theme-color" content="#0b1220" />
 <style>
   :root{
     --bg:#0b1220; --panel:#0f172a; --panel2:#0b1326;
@@ -17,13 +17,12 @@
   .wrap{max-width:980px;margin:0 auto;padding:12px 12px 90px}
   a{color:#b7d0ff;text-decoration:none}
 
-  .appbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,rgba(12,18,36,.9),rgba(12,18,36,.7));
+  .appbar{position:sticky;top:0;z-index:20;background:#0b1220;
     border-bottom:1px solid var(--border);padding:10px 14px}
-  .app-title{font-weight:800;font-size:18px}
-
-  .tabs{display:flex;gap:16px;margin-top:6px}
-  .tab{font-size:12px;color:#bcd0ef;padding-bottom:6px;border-bottom:2px solid transparent;cursor:pointer}
-  .tab.active{color:#fff;border-color:var(--accent)}
+  .app-title{font-weight:800;font-size:18px;text-align:center}
+  .tabs{display:flex;gap:0;margin-top:10px;border-bottom:1px solid var(--border)}
+  .tab{flex:1;text-align:center;font-size:13px;color:#bcd0ef;padding:10px 0;border-bottom:2px solid transparent;cursor:pointer}
+  .tab.active{color:#fff;border-color:var(--accent);background:#0e1a34}
   .section{display:none} .section.active{display:block}
 
   .summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
@@ -68,7 +67,7 @@
   .o-amt.pos{color:var(--pos)} .o-amt.neg{color:var(--neg)}
   .o-mini{font-size:12px; color:var(--muted); margin-top:2px}
 
-  /* viewer（閲覧専用）モード：入力UIを隠し、セルは読み取りに */
+  /* viewer（閲覧専用）モード：入力UIを隠す */
   .viewer .toolbar, .viewer .row-actions { display: none !important; }
   .viewer td input, .viewer td select {
     pointer-events: none; border: none; background: transparent; color: var(--text);
@@ -84,7 +83,7 @@
 <body>
 
 <div class="appbar">
-  <div class="app-title">口座管理 & 注文照会</div>
+  <div class="app-title">SBI風 口座管理 & 注文照会</div>
   <div class="tabs">
     <div class="tab active" data-view="portfolio">口座管理</div>
     <div class="tab" data-view="orders">注文照会</div>
@@ -93,7 +92,7 @@
 
 <div class="wrap">
 
-  <!-- 口座管理 -->
+  <!-- 口座管理（編集可） -->
   <section id="view-portfolio" class="section active">
     <div class="summary">
       <div class="card">
@@ -155,7 +154,7 @@
     <div class="label" style="margin-top:8px">※ データは端末のブラウザ（localStorage）に保存されます。</div>
   </section>
 
-  <!-- 注文照会 -->
+  <!-- 注文照会（指定データで初期化） -->
   <section id="view-orders" class="section">
     <div class="toolbar">
       <div class="field"><label>銘柄</label><input id="ord-name" type="text" placeholder="例: ルネサスエレクトロニクス"></div>
@@ -163,13 +162,13 @@
       <div class="field"><label>取引</label><select id="ord-side"><option>買付</option><option>売却</option></select></div>
       <div class="field"><label>株数</label><input id="ord-qty" type="number" step="1" value="100"></div>
       <div class="field"><label>約定単価</label><input id="ord-price" type="number" step="0.01" value="1000"></div>
-      <div class="field"><label>日時</label><input id="ord-dt" type="datetime-local"></div>
+      <div class="field"><label>日時</label><input id="ord-dt" type="date"></div>
       <div class="field" style="gap:6px">
         <button class="btn" id="ord-add">追加</button>
         <button class="btn danger" id="ord-clear">全削除</button>
       </div>
       <div class="field" style="gap:6px">
-        <button class="btn ghost" id="ord-seed">デモ履歴（6件）</button>
+        <button class="btn ghost" id="ord-seed">指定履歴を再読み込み</button>
       </div>
     </div>
 
@@ -180,7 +179,7 @@
 </div>
 
 <script>
-/* ========== 共通 ========== */
+/* ===== 共通 ===== */
 const VIEW_ONLY = new URLSearchParams(location.search).get('mode') === 'viewer';
 if (VIEW_ONLY) document.body.classList.add('viewer');
 
@@ -188,10 +187,10 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 const fmtJPY = n=>Number(n).toLocaleString("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0});
 const pct = n=>(n*100).toFixed(2)+"%";
 
-const LS_PORT="sbi_like_portfolio_v1";
-const LS_ORD ="sbi_like_orders_v1";
+const LS_PORT="sbi_like_portfolio_v2";
+const LS_ORD ="sbi_like_orders_v2";
 
-/* ========== タブ切替 ========== */
+/* ===== タブ切替 ===== */
 $$(".tab").forEach(t=>t.onclick=()=>{
   $$(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   $$(".section").forEach(s=>s.classList.remove("active"));
@@ -199,7 +198,7 @@ $$(".tab").forEach(t=>t.onclick=()=>{
   if(t.dataset.view==="orders") renderOrders();
 });
 
-/* ========== ポートフォリオ ========== */
+/* ===== 口座管理 ===== */
 let rows = load(LS_PORT, []);
 let sortKey="name", sortAsc=true;
 
@@ -252,8 +251,18 @@ $("#grid").addEventListener("input",e=>{const tr=e.target.closest("tr"); if(!tr)
 $("#grid").addEventListener("click",e=>{if(e.target && e.target.hasAttribute("data-del")){const id=e.target.closest("tr").dataset.id; if(confirm("この行を削除しますか？")) removeRow(id);}});
 $$("thead th[data-key]").forEach(th=>th.onclick=()=>{const key=th.dataset.key; if(sortKey===key) sortAsc=!sortAsc; else{sortKey=key;sortAsc=true;} renderRows();});
 
-/* ========== 注文照会 ========== */
+/* ===== 注文照会 ===== */
 let ORDERS = load(LS_ORD, []); // {ts,name,code,side,qty,price,status}
+
+const FIXED_ORDERS = [
+  {d:"2025/04/23", name:"ルネサスエレクトロニクス", code:"6723", side:"買付", qty:100, price:2386},
+  {d:"2025/04/23", name:"サカタインクス",       code:"4633", side:"買付", qty:100, price:4219},
+  {d:"2025/05/21", name:"アイドマHD",            code:"7373", side:"買付", qty:100, price:650},
+  {d:"2025/05/21", name:"エアロエッジ",          code:"7409", side:"買付", qty:100, price:1200},
+  {d:"2025/05/21", name:"ギフティ",              code:"4449", side:"買付", qty:100, price:2000},
+  {d:"2025/06/06", name:"三菱重工業",            code:"7011", side:"売却", qty:100, price:null},
+  {d:"2025/08/19", name:"村田製作所",            code:"6981", side:"買付", qty:100, price:2421},
+];
 
 function renderOrders(){
   const box = document.getElementById("ord-list");
@@ -269,18 +278,18 @@ function renderOrders(){
   list.forEach(o=>{
     const row = document.createElement("div");
     row.className = "orow";
-    const dt = new Date(o.ts).toLocaleString("ja-JP");
+    const dt = new Date(o.ts).toLocaleDateString("ja-JP");
     const left = document.createElement("div");
     left.className = "o-left";
     left.innerHTML = `
       <div class="o-name">${o.name}<span class="badge">${o.side}</span></div>
-      <div class="o-sub">${dt}　コード ${o.code}　約定 ${o.qty.toLocaleString()}株 × ${o.price.toLocaleString()}円</div>
+      <div class="o-sub">${dt}　コード ${o.code}　約定 ${o.qty.toLocaleString()}株 × ${(o.price??"-").toLocaleString?.() ?? "-" }円</div>
     `;
-    const amt = o.qty*o.price;
+    const amt = o.price==null ? 0 : o.qty*o.price;
     const right = document.createElement("div");
     right.className = "o-right";
     right.innerHTML = `
-      <div class="o-amt ${o.side==="売却"?"pos":"neg"}">${(o.side==="売却"?"+":"-")}${amt.toLocaleString()}円</div>
+      <div class="o-amt ${o.side==="売却"?"pos":"neg"}">${o.price==null?"-":(o.side==="売却"?"+":"-")+amt.toLocaleString()+"円"}</div>
       <div class="o-mini">${o.status || "約定済"}</div>
     `;
     row.appendChild(left); row.appendChild(right);
@@ -288,32 +297,25 @@ function renderOrders(){
   });
 }
 function addOrder(o){
-  ORDERS.push({ts:o.ts ?? Date.now(), name:o.name||"", code:o.code||"", side:o.side||"買付",
-    qty:Number(o.qty||0), price:Number(o.price||0), status:o.status||"約定済"});
+  const ts = o.ts ?? (o.d ? new Date(o.d).getTime() : Date.now());
+  ORDERS.push({ts, name:o.name||"", code:o.code||"", side:o.side||"買付",
+    qty:Number(o.qty||0), price:(o.price==null?null:Number(o.price)), status:o.status||"約定済"});
   save(LS_ORD, ORDERS); renderOrders();
 }
 $("#ord-add").onclick=()=>addOrder({
-  ts: $("#ord-dt").value ? new Date($("#ord-dt").value).getTime() : Date.now(),
+  d: $("#ord-dt").value || undefined,
   name:$("#ord-name").value, code:$("#ord-code").value, side:$("#ord-side").value,
   qty:$("#ord-qty").value, price:$("#ord-price").value, status:"約定済"
 });
 $("#ord-clear").onclick=()=>{if(confirm("すべて削除しますか？")){ORDERS=[];save(LS_ORD,ORDERS);renderOrders();}};
-$("#ord-seed").onclick=()=>{
-  ORDERS=[]; const base=Date.now()-1000*60*60*6*6;
-  const S=[
-    {name:"ルネサスエレクトロニクス",code:"6723",side:"買付",qty:100,price:1816},
-    {name:"サカタインクス",code:"4633",side:"買付",qty:100,price:2297},
-    {name:"アイドマ・ホールディングス",code:"7373",side:"買付",qty:100,price:2762},
-    {name:"AeroEdge",code:"7409",side:"買付",qty:100,price:4395},
-    {name:"ギフティ",code:"4449",side:"買付",qty:100,price:1502},
-    {name:"三菱重工業",code:"7011",side:"売却",qty:100,price:1612}
-  ];
-  S.forEach((x,i)=>addOrder({ts:base+i*1000*60*60*6,...x,status:"約定済"}));
-};
+$("#ord-seed").onclick=()=>{ORDERS=[]; FIXED_ORDERS.forEach(addOrder);};
 
-/* ========== 初期描画 & 閲覧専用化 ========== */
-renderRows(); renderOrders();
-// 閲覧専用モードでは入力UIを無効化
+/* ===== 初期描画 & ビュー専用化 ===== */
+function ensureInitialOrders(){
+  if(ORDERS.length===0){ FIXED_ORDERS.forEach(addOrder); } // 初回だけ指定履歴を投入
+}
+renderRows(); ensureInitialOrders(); renderOrders();
+
 if (VIEW_ONLY) {
   document.querySelectorAll('.toolbar, .row-actions').forEach(el=>el.remove());
   document.querySelectorAll('td input, td select').forEach(el=>{
