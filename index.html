@@ -1,111 +1,327 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SBI証券風アプリ</title>
-  <style>
-    body {
-      font-family: "Hiragino Kaku Gothic ProN", sans-serif;
-      margin: 0;
-      background: #f5f5f5;
-    }
-    header {
-      background: #003366;
-      color: white;
-      text-align: center;
-      padding: 15px;
-      font-size: 18px;
-    }
-    nav {
-      display: flex;
-      background: #e6e6e6;
-      border-bottom: 1px solid #ccc;
-    }
-    nav button {
-      flex: 1;
-      padding: 12px;
-      background: #e6e6e6;
-      border: none;
-      font-size: 14px;
-    }
-    nav button.active {
-      background: white;
-      border-bottom: 2px solid #003366;
-      font-weight: bold;
-    }
-    .content {
-      padding: 15px;
-      background: white;
-    }
-    .section-title {
-      font-size: 16px;
-      font-weight: bold;
-      margin-bottom: 10px;
-      border-left: 5px solid #003366;
-      padding-left: 8px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-    }
-    th, td {
-      border-bottom: 1px solid #ddd;
-      padding: 10px;
-      font-size: 14px;
-      text-align: left;
-    }
-    th {
-      background: #f0f0f0;
-    }
-    .positive { color: red; }
-    .negative { color: blue; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SBI風 ポートフォリオ & 注文照会（編集/閲覧切替）</title>
+<meta name="theme-color" content="#0b1220">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#0f172a; --panel2:#0b1326;
+    --text:#e6ebf5; --muted:#9fb0cc; --accent:#2f6bff; --border:#1b2a4a;
+    --pos:#22d37f; --neg:#ff5c73;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:12px 12px 90px}
+  a{color:#b7d0ff;text-decoration:none}
+
+  .appbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,rgba(12,18,36,.9),rgba(12,18,36,.7));
+    border-bottom:1px solid var(--border);padding:10px 14px}
+  .app-title{font-weight:800;font-size:18px}
+
+  .tabs{display:flex;gap:16px;margin-top:6px}
+  .tab{font-size:12px;color:#bcd0ef;padding-bottom:6px;border-bottom:2px solid transparent;cursor:pointer}
+  .tab.active{color:#fff;border-color:var(--accent)}
+  .section{display:none} .section.active{display:block}
+
+  .summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px}
+  .label{font-size:12px;color:var(--muted)}
+  .val{font-size:22px;font-weight:800}
+  .val.pos{color:var(--pos)} .val.neg{color:var(--neg)}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:end;background:var(--panel);
+    border:1px solid var(--border);border-radius:12px;padding:10px;margin:10px 0}
+  .field{display:flex;flex-direction:column;gap:6px}
+  label{font-size:11px;color:var(--muted)}
+  input[type="text"],input[type="number"],select{
+    background:#0a1730;border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:8px 10px;min-width:96px}
+  input[type="number"]{text-align:right}
+  .btn{background:linear-gradient(180deg,#2f6bff,#244fca);color:#fff;border:none;border-radius:10px;
+    padding:9px 12px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid var(--border)}
+  .btn.danger{background:linear-gradient(180deg,#ff5c73,#d64559)}
+
+  .table{background:var(--panel2);border:1px solid var(--border);border-radius:12px;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  thead th{position:sticky;top:0;background:#0d1833;color:#b7c5e3;font-size:12px;padding:10px;border-bottom:1px solid var(--border);text-align:right;cursor:pointer}
+  thead th:first-child,tbody td:first-child{text-align:left}
+  tbody td{padding:11px 10px;border-bottom:1px solid var(--border);text-align:right}
+  tbody tr:hover{background:#0e1a36}
+  .pnl.pos{color:var(--pos);font-weight:700}
+  .pnl.neg{color:var(--neg);font-weight:700}
+  .row-actions{display:flex;gap:6px;justify-content:flex-end}
+
+  /* 注文照会：SBI風カード */
+  .olist{background:var(--panel2); border:1px solid var(--border); border-radius:12px; overflow:hidden}
+  .orow{display:flex; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid var(--border)}
+  .orow:last-child{border-bottom:none}
+  .o-left{min-width:0}
+  .o-name{font-weight:800}
+  .o-sub{font-size:12px; color:var(--muted); margin-top:2px}
+  .badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:#132243; color:#cfe0ff; margin-left:8px}
+  .o-right{text-align:right}
+  .o-amt{font-size:20px; font-weight:800}
+  .o-amt.pos{color:var(--pos)} .o-amt.neg{color:var(--neg)}
+  .o-mini{font-size:12px; color:var(--muted); margin-top:2px}
+
+  /* viewer（閲覧専用）モード：入力UIを隠し、セルは読み取りに */
+  .viewer .toolbar, .viewer .row-actions { display: none !important; }
+  .viewer td input, .viewer td select {
+    pointer-events: none; border: none; background: transparent; color: var(--text);
+    padding: 0; width: 100%;
+  }
+
+  @media (max-width:840px){
+    .summary{grid-template-columns:1fr}
+    input[type="text"],input[type="number"],select{min-width:0}
+  }
+</style>
 </head>
 <body>
-  <header>SBI証券</header>
-  <nav>
-    <button id="nav1" class="active" onclick="showPage('account')">口座管理</button>
-    <button id="nav2" onclick="showPage('orders')">注文照会</button>
-  </nav>
+
+<div class="appbar">
+  <div class="app-title">口座管理 & 注文照会</div>
+  <div class="tabs">
+    <div class="tab active" data-view="portfolio">口座管理</div>
+    <div class="tab" data-view="orders">注文照会</div>
+  </div>
+</div>
+
+<div class="wrap">
 
   <!-- 口座管理 -->
-  <div id="account" class="content">
-    <div class="section-title">口座管理</div>
-    <table>
-      <tr><th>銘柄</th><th>株数</th><th>取得単価</th><th>現在値</th><th>評価損益</th></tr>
-      <tr><td>ルネサスエレクトロニクス</td><td>100株</td><td>¥2,386</td><td>¥2,520</td><td class="positive">+¥13,400</td></tr>
-      <tr><td>サカタインクス</td><td>100株</td><td>¥4,219</td><td>¥4,150</td><td class="negative">-¥6,900</td></tr>
-      <tr><td>アイドマHD</td><td>100株</td><td>¥650</td><td>¥700</td><td class="positive">+¥5,000</td></tr>
-      <tr><td>エアロエッジ</td><td>100株</td><td>¥1,200</td><td>¥1,450</td><td class="positive">+¥25,000</td></tr>
-      <tr><td>ギフティ</td><td>100株</td><td>¥2,000</td><td>¥1,950</td><td class="negative">-¥5,000</td></tr>
-    </table>
-  </div>
+  <section id="view-portfolio" class="section active">
+    <div class="summary">
+      <div class="card">
+        <div class="label">評価額 合計（円換算）</div>
+        <div id="sum-eval" class="val">-</div>
+        <div class="label" style="margin-top:6px">USD/JPY:
+          <input id="fx" type="number" step="0.01" value="160" style="width:110px;margin-left:6px">
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">取得金額 合計</div>
+        <div id="sum-cost" class="val">-</div>
+        <div id="sum-rows" class="label" style="margin-top:6px">銘柄数: 0</div>
+      </div>
+      <div class="card">
+        <div class="label">評価損益（率）</div>
+        <div id="sum-pl" class="val">-</div>
+        <div id="sum-plr" class="label" style="margin-top:6px">-</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="field"><label>銘柄</label><input id="f-name" type="text" placeholder="例: ルネサス"></div>
+      <div class="field"><label>コード/ティッカー</label><input id="f-ticker" type="text" placeholder="6723 / AMZN"></div>
+      <div class="field"><label>通貨</label><select id="f-curr"><option>JPY</option><option>USD</option></select></div>
+      <div class="field"><label>数量</label><input id="f-qty" type="number" step="1" value="100"></div>
+      <div class="field"><label>取得単価</label><input id="f-cost" type="number" step="0.01" placeholder="1666"></div>
+      <div class="field"><label>現在値</label><input id="f-price" type="number" step="0.01" placeholder="1816"></div>
+      <div class="field" style="gap:6px">
+        <button class="btn" id="btn-add">追加</button>
+        <button class="btn danger" id="btn-clear">全削除</button>
+      </div>
+      <div class="field" style="gap:6px">
+        <button class="btn ghost" id="btn-export">CSV書き出し</button>
+        <label class="btn ghost" style="cursor:pointer">CSV読み込み<input id="csv-file" type="file" accept=".csv" style="display:none"></label>
+      </div>
+    </div>
+
+    <div class="table">
+      <table id="grid">
+        <thead>
+          <tr>
+            <th data-key="name">銘柄</th>
+            <th data-key="ticker">コード</th>
+            <th>通貨</th>
+            <th data-key="qty">数量</th>
+            <th data-key="cost">取得単価</th>
+            <th data-key="price">現在値</th>
+            <th data-key="evalJPY">評価額(JPY)</th>
+            <th data-key="pl">損益</th>
+            <th data-key="plr">損益率</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="label" style="margin-top:8px">※ データは端末のブラウザ（localStorage）に保存されます。</div>
+  </section>
 
   <!-- 注文照会 -->
-  <div id="orders" class="content" style="display:none;">
-    <div class="section-title">注文照会</div>
-    <table>
-      <tr><th>日付</th><th>銘柄</th><th>売買</th><th>株数</th><th>価格</th></tr>
-      <tr><td>2025/08/01</td><td>ルネサスエレクトロニクス</td><td>買</td><td>100</td><td>¥2,386</td></tr>
-      <tr><td>2025/08/02</td><td>サカタインクス</td><td>買</td><td>100</td><td>¥4,219</td></tr>
-      <tr><td>2025/08/03</td><td>アイドマHD</td><td>買</td><td>100</td><td>¥650</td></tr>
-      <tr><td>2025/08/04</td><td>エアロエッジ</td><td>買</td><td>100</td><td>¥1,200</td></tr>
-      <tr><td>2025/08/05</td><td>ギフティ</td><td>買</td><td>100</td><td>¥2,000</td></tr>
-      <tr><td>2025/08/06</td><td>三菱重工業</td><td>売</td><td>100</td><td>¥9,000</td></tr>
-    </table>
-  </div>
+  <section id="view-orders" class="section">
+    <div class="toolbar">
+      <div class="field"><label>銘柄</label><input id="ord-name" type="text" placeholder="例: ルネサスエレクトロニクス"></div>
+      <div class="field"><label>コード</label><input id="ord-code" type="text" placeholder="6723 / AMZN"></div>
+      <div class="field"><label>取引</label><select id="ord-side"><option>買付</option><option>売却</option></select></div>
+      <div class="field"><label>株数</label><input id="ord-qty" type="number" step="1" value="100"></div>
+      <div class="field"><label>約定単価</label><input id="ord-price" type="number" step="0.01" value="1000"></div>
+      <div class="field"><label>日時</label><input id="ord-dt" type="datetime-local"></div>
+      <div class="field" style="gap:6px">
+        <button class="btn" id="ord-add">追加</button>
+        <button class="btn danger" id="ord-clear">全削除</button>
+      </div>
+      <div class="field" style="gap:6px">
+        <button class="btn ghost" id="ord-seed">デモ履歴（6件）</button>
+      </div>
+    </div>
 
-  <script>
-    function showPage(page) {
-      document.getElementById("account").style.display = "none";
-      document.getElementById("orders").style.display = "none";
-      document.getElementById(page).style.display = "block";
-      document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active"));
-      document.getElementById("nav" + (page === "account" ? "1" : "2")).classList.add("active");
-    }
-  </script>
+    <div class="olist" id="ord-list"></div>
+    <div class="label" style="margin-top:8px">※ 履歴も localStorage に保存されます。</div>
+  </section>
+
+</div>
+
+<script>
+/* ========== 共通 ========== */
+const VIEW_ONLY = new URLSearchParams(location.search).get('mode') === 'viewer';
+if (VIEW_ONLY) document.body.classList.add('viewer');
+
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const fmtJPY = n=>Number(n).toLocaleString("ja-JP",{style:"currency",currency:"JPY",maximumFractionDigits:0});
+const pct = n=>(n*100).toFixed(2)+"%";
+
+const LS_PORT="sbi_like_portfolio_v1";
+const LS_ORD ="sbi_like_orders_v1";
+
+/* ========== タブ切替 ========== */
+$$(".tab").forEach(t=>t.onclick=()=>{
+  $$(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  $$(".section").forEach(s=>s.classList.remove("active"));
+  $("#view-"+t.dataset.view).classList.add("active");
+  if(t.dataset.view==="orders") renderOrders();
+});
+
+/* ========== ポートフォリオ ========== */
+let rows = load(LS_PORT, []);
+let sortKey="name", sortAsc=true;
+
+function load(key, def){ try{ return JSON.parse(localStorage.getItem(key)||JSON.stringify(def)); }catch(_){ return def; } }
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+function compute(r,rate){const bc=r.cost*r.qty, be=r.price*r.qty, fx=r.curr==="USD"?rate:1;
+  const costJPY=bc*fx, evalJPY=be*fx, pl=evalJPY-costJPY, plr=costJPY===0?0:pl/costJPY; return{costJPY,evalJPY,pl,plr};}
+
+function fillRowCalc(r,tr){const rate=Number($("#fx").value)||1; const c=compute(r,rate);
+  tr.querySelector(".eval").textContent=fmtJPY(c.evalJPY);
+  const plc=tr.querySelector(".pl"); plc.textContent=(c.pl>=0?"+":"")+fmtJPY(c.pl).replace("￥",""); plc.className="calc pl pnl "+(c.pl>=0?"pos":"neg");
+  const rc=tr.querySelector(".plr"); rc.textContent=(c.plr>=0?"+":"")+pct(c.plr); rc.className="calc plr pnl "+(c.plr>=0?"pos":"neg");}
+
+function renderSummary(){const rate=Number($("#fx").value)||1; let tc=0,te=0; rows.forEach(r=>{const c=compute(r,rate); tc+=c.costJPY; te+=c.evalJPY;});
+  const pl=te-tc; $("#sum-eval").textContent=fmtJPY(te); $("#sum-cost").textContent=fmtJPY(tc);
+  $("#sum-pl").textContent=(pl>=0?"+":"")+fmtJPY(pl).replace("￥",""); $("#sum-pl").className="val "+(pl>=0?"pos":"neg");
+  $("#sum-plr").textContent=(tc? (pl/tc*100).toFixed(2):"0.00")+"%"; $("#sum-rows").textContent="銘柄数: "+rows.length;}
+
+function renderRows(){const rate=Number($("#fx").value)||1;
+  const list=rows.map(r=>({...r,...compute(r,rate)})).sort((a,b)=>{const d=sortAsc?1:-1; const va=a[sortKey],vb=b[sortKey]; return (typeof va==="string"?va.localeCompare(vb):va-vb)*d;});
+  const tb=$("#tbody"); tb.innerHTML=""; if(list.length===0){tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px">対象データがありません。</td></tr>`;}
+  else list.forEach(r=>{const tr=document.createElement("tr"); tr.dataset.id=r.id;
+    tr.innerHTML=`<td><input data-key="name" value="${r.name}"></td>
+    <td><input data-key="ticker" value="${r.ticker}" style="width:90px;text-align:center"></td>
+    <td><select data-key="curr"><option ${r.curr==="JPY"?"selected":""}>JPY</option><option ${r.curr==="USD"?"selected":""}>USD</option></select></td>
+    <td><input data-key="qty" type="number" step="1" value="${r.qty}" style="width:90px;text-align:right"></td>
+    <td><input data-key="cost" type="number" step="0.01" value="${r.cost}" style="width:110px;text-align:right"></td>
+    <td><input data-key="price" type="number" step="0.01" value="${r.price}" style="width:110px;text-align:right"></td>
+    <td class="calc eval">-</td><td class="calc pl">-</td><td class="calc plr">-</td>
+    <td class="row-actions"><button class="btn danger" data-del>削除</button></td>`; tb.appendChild(tr); fillRowCalc(r,tr);});
+  renderSummary();}
+
+function addRow(r){rows.unshift({id:crypto.randomUUID(),name:r.name||"",ticker:r.ticker||"",curr:r.curr||"JPY",qty:Number(r.qty||0),cost:Number(r.cost||0),price:Number(r.price||0)});
+  save(LS_PORT,rows); renderRows();}
+function updateField(id,key,val){const r=rows.find(x=>x.id===id); if(!r) return; r[key]=(key==="qty"||key==="cost"||key==="price")?Number(val):val; save(LS_PORT,rows); fillRowCalc(r,document.querySelector(`tr[data-id="${id}"]`)); renderSummary();}
+function removeRow(id){rows=rows.filter(r=>r.id!==id); save(LS_PORT,rows); renderRows();}
+
+$("#btn-add").onclick=()=>addRow({name:$("#f-name").value,ticker:$("#f-ticker").value,curr:$("#f-curr").value,qty:$("#f-qty").value,cost:$("#f-cost").value,price:$("#f-price").value});
+$("#btn-clear").onclick=()=>{if(confirm("すべて削除しますか？")){rows=[];save(LS_PORT,rows);renderRows();}}
+$("#btn-export").onclick=()=>{const header="ticker,name,currency,qty,cost,price\n";
+  const body=rows.map(r=>[r.ticker,r.name,r.curr,r.qty,r.cost,r.price].join(",")).join("\n");
+  const blob=new Blob([header+body],{type:"text/csv;charset=utf-8;"}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="portfolio.csv"; a.click(); URL.revokeObjectURL(url);}
+$("#csv-file").onchange=e=>{const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ev.target.result.split(/\r?\n/).filter((l,i)=>l&&i).forEach(line=>{const [ticker,name,curr,qty,cost,price]=line.split(","); addRow({ticker,name,curr,qty,cost,price});});};
+  rd.readAsText(f,"utf-8"); e.target.value="";}
+$("#fx").oninput=renderRows;
+$("#grid").addEventListener("input",e=>{const tr=e.target.closest("tr"); if(!tr) return; const id=tr.dataset.id,key=e.target.dataset.key; if(key) updateField(id,key,e.target.value);});
+$("#grid").addEventListener("click",e=>{if(e.target && e.target.hasAttribute("data-del")){const id=e.target.closest("tr").dataset.id; if(confirm("この行を削除しますか？")) removeRow(id);}});
+$$("thead th[data-key]").forEach(th=>th.onclick=()=>{const key=th.dataset.key; if(sortKey===key) sortAsc=!sortAsc; else{sortKey=key;sortAsc=true;} renderRows();});
+
+/* ========== 注文照会 ========== */
+let ORDERS = load(LS_ORD, []); // {ts,name,code,side,qty,price,status}
+
+function renderOrders(){
+  const box = document.getElementById("ord-list");
+  box.innerHTML = "";
+  if(ORDERS.length === 0){
+    const empty = document.createElement("div");
+    empty.style.cssText = "padding:30px; text-align:center; color:var(--muted)";
+    empty.textContent = "条件に一致する明細がありません。";
+    box.appendChild(empty);
+    return;
+  }
+  const list = [...ORDERS].sort((a,b)=> a.ts - b.ts);
+  list.forEach(o=>{
+    const row = document.createElement("div");
+    row.className = "orow";
+    const dt = new Date(o.ts).toLocaleString("ja-JP");
+    const left = document.createElement("div");
+    left.className = "o-left";
+    left.innerHTML = `
+      <div class="o-name">${o.name}<span class="badge">${o.side}</span></div>
+      <div class="o-sub">${dt}　コード ${o.code}　約定 ${o.qty.toLocaleString()}株 × ${o.price.toLocaleString()}円</div>
+    `;
+    const amt = o.qty*o.price;
+    const right = document.createElement("div");
+    right.className = "o-right";
+    right.innerHTML = `
+      <div class="o-amt ${o.side==="売却"?"pos":"neg"}">${(o.side==="売却"?"+":"-")}${amt.toLocaleString()}円</div>
+      <div class="o-mini">${o.status || "約定済"}</div>
+    `;
+    row.appendChild(left); row.appendChild(right);
+    box.appendChild(row);
+  });
+}
+function addOrder(o){
+  ORDERS.push({ts:o.ts ?? Date.now(), name:o.name||"", code:o.code||"", side:o.side||"買付",
+    qty:Number(o.qty||0), price:Number(o.price||0), status:o.status||"約定済"});
+  save(LS_ORD, ORDERS); renderOrders();
+}
+$("#ord-add").onclick=()=>addOrder({
+  ts: $("#ord-dt").value ? new Date($("#ord-dt").value).getTime() : Date.now(),
+  name:$("#ord-name").value, code:$("#ord-code").value, side:$("#ord-side").value,
+  qty:$("#ord-qty").value, price:$("#ord-price").value, status:"約定済"
+});
+$("#ord-clear").onclick=()=>{if(confirm("すべて削除しますか？")){ORDERS=[];save(LS_ORD,ORDERS);renderOrders();}};
+$("#ord-seed").onclick=()=>{
+  ORDERS=[]; const base=Date.now()-1000*60*60*6*6;
+  const S=[
+    {name:"ルネサスエレクトロニクス",code:"6723",side:"買付",qty:100,price:1816},
+    {name:"サカタインクス",code:"4633",side:"買付",qty:100,price:2297},
+    {name:"アイドマ・ホールディングス",code:"7373",side:"買付",qty:100,price:2762},
+    {name:"AeroEdge",code:"7409",side:"買付",qty:100,price:4395},
+    {name:"ギフティ",code:"4449",side:"買付",qty:100,price:1502},
+    {name:"三菱重工業",code:"7011",side:"売却",qty:100,price:1612}
+  ];
+  S.forEach((x,i)=>addOrder({ts:base+i*1000*60*60*6,...x,status:"約定済"}));
+};
+
+/* ========== 初期描画 & 閲覧専用化 ========== */
+renderRows(); renderOrders();
+// 閲覧専用モードでは入力UIを無効化
+if (VIEW_ONLY) {
+  document.querySelectorAll('.toolbar, .row-actions').forEach(el=>el.remove());
+  document.querySelectorAll('td input, td select').forEach(el=>{
+    el.setAttribute('readonly','readonly'); el.setAttribute('disabled','disabled');
+    el.style.border='none'; el.style.background='transparent'; el.style.color='var(--text)';
+    el.style.padding='0';
+  });
+}
+</script>
 </body>
 </html>
-
